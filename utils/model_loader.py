@@ -5,8 +5,8 @@ import os
 
 def get_artifact_path(filename: str) -> str:
     """Get the full path to an artifact file."""
-    base_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    artifact_path = os.path.join(base_path, 'training_pipeline', 'artifacts', filename)
+    base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    artifact_path = os.path.join(base_path, 'models', filename)
     return artifact_path
 
 def load_model(use_tuned: bool = True):
@@ -47,14 +47,21 @@ def load_scaler():
 
 def load_feature_names():
     """Load the feature names used during training."""
-    feature_path = get_artifact_path('feature_names.pkl')
-    if not os.path.exists(feature_path):
-        raise FileNotFoundError(f"Feature names not found at {feature_path}. Please train the model first.")
+    # Try .pkl first, then fall back to .txt
+    pkl_path = get_artifact_path('feature_names.pkl')
+    txt_path = get_artifact_path('feature_names.txt')
 
-    with open(feature_path, 'rb') as f:
-        feature_names = pickle.load(f)
+    if os.path.exists(pkl_path):
+        with open(pkl_path, 'rb') as f:
+            return pickle.load(f)
 
-    return feature_names
+    if os.path.exists(txt_path):
+        with open(txt_path, 'r') as f:
+            return [line.strip() for line in f if line.strip()]
+
+    raise FileNotFoundError(
+        f"Feature names not found. Looked for:\n  {pkl_path}\n  {txt_path}\nPlease train the model first."
+    )
 
 def load_model_metadata():
     """Load model metadata (name, metrics, etc.)."""

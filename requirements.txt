@@ -1,0 +1,12 @@
+# Deployment App Requirements
+
+# Streamlit
+streamlit>=1.32.0
+
+# Core ML libraries (must match Kaggle training environment)
+numpy==2.0.2
+pandas==2.2.2
+scikit-learn==1.6.1
+
+# Utilities
+joblib==1.5.3
