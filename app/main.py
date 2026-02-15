@@ -195,7 +195,7 @@ def main():
         """
         <div style='text-align: center; color: #666;'>
         <p>Built with ❤️ using Streamlit & Scikit-learn |
-        <a href='https://github.com' target='_blank'>View on GitHub</a></p>
+        <a href='https://github.com/Airlectric/Amalitech-DEM09-Machine-Learning-Deployment-of-Flight-Price-Analysis-.git' target='_blank'>View on GitHub</a></p>
         </div>
         """,
         unsafe_allow_html=True
