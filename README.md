@@ -72,15 +72,24 @@ The model was trained on Kaggle using the following library versions:
 ## Features
 
 ### Prediction Interface
-- Select airline, source/destination cities, date, time, and season
-- One-click fare prediction with results in BDT and approximate USD
-- Estimated price range displayed alongside the prediction
-- Input validation (e.g., source and destination cannot match)
+The app collects 12 user inputs and automatically derives the remaining features (Season, Route, airport names) to build all 248 model features internally.
 
-### Supported Input Options
-- **Airlines:** Biman Bangladesh Airlines, US-Bangla Airlines, Novoair, Regent Airways, Air Astra
-- **Cities:** Dhaka, Chittagong, Sylhet, Cox's Bazar, Jessore
-- **Seasons:** Spring, Summer, Autumn, Winter
+### Input Fields
+
+| # | Field | Type | Options |
+|---|-------|------|---------|
+| 1 | Airline | Dropdown | 24 airlines (Air Arabia, Biman Bangladesh, Emirates, Qatar Airways, etc.) |
+| 2 | Source Airport | Dropdown | 8 Bangladesh airports (DAC, CGP, CXB, JSR, ZYL, RJH, SPD, BZL) |
+| 3 | Destination Airport | Dropdown | 20 airports (domestic + international: DXB, LHR, JFK, SIN, etc.) |
+| 4 | Departure Date | Date picker | Derives Month, Day, Weekday, and Season automatically |
+| 5 | Departure Time | Time picker | Derives Hour |
+| 6 | Duration (hrs) | Number | Flight duration (0.5 - 24 hrs) |
+| 7 | Days Before Departure | Number | Booking lead time (1 - 90 days) |
+| 8 | Stopovers | Dropdown | Direct, 1 Stop, 2 Stops |
+| 9 | Aircraft Type | Dropdown | Airbus A320, Airbus A350, Boeing 737, Boeing 777, Boeing 787 |
+| 10 | Class | Dropdown | Economy, Business, First Class |
+| 11 | Booking Source | Dropdown | Direct Booking, Online Website, Travel Agency |
+| 12 | Seasonality | Dropdown | Regular, Hajj, Eid, Winter Holidays |
 
 ### Model Info Sidebar
 If `best_model_metadata.pkl` is provided, the sidebar displays the model type and metrics (R2, RMSE, MAE, MAPE). Otherwise it gracefully shows a fallback message.
@@ -97,16 +106,22 @@ feature_names = load_feature_names()
 
 input_data = {
     'Airline': 'Biman Bangladesh Airlines',
-    'Source': 'Dhaka',
-    'Destination': 'Chittagong',
+    'Source': 'DAC',                   # Airport code
+    'Destination': 'CGP',              # Airport code
     'Month': 6,
     'Day': 15,
     'Weekday': 2,
     'Hour': 14,
-    'Season': 'Summer'
+    'Duration (hrs)': 1.5,
+    'Days Before Departure': 30,
+    'Stopovers': 'Direct',
+    'Aircraft Type': 'Boeing 737',
+    'Class': 'Economy',
+    'Booking Source': 'Online Website',
+    'Seasonality': 'Regular',
 }
 
-input_df = preprocess_input(input_data, feature_names)
+input_df = preprocess_input(input_data, feature_names, scaler)
 prediction = model.predict(input_df)[0]
 print(f"Predicted fare: {prediction:.2f} BDT")
 ```

@@ -3,7 +3,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import pickle
 import os
 import sys
 from datetime import datetime
@@ -13,7 +12,11 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
 from utils.model_loader import load_model, load_scaler, load_feature_names, load_model_metadata
-from utils.preprocessor import preprocess_input
+from utils.preprocessor import (
+    preprocess_input, get_season,
+    SOURCE_AIRPORTS, DESTINATION_AIRPORTS, AIRLINES,
+    STOPOVERS, AIRCRAFT_TYPES, CLASSES, BOOKING_SOURCES, SEASONALITIES,
+)
 
 # Page configuration
 st.set_page_config(
@@ -59,6 +62,13 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Build display labels for airports: "City (CODE)"
+SOURCE_LABELS = {code: f"{name.split(',')[-1].strip() if ',' in name else name.replace(' Airport', '')} ({code})"
+                 for code, name in SOURCE_AIRPORTS.items()}
+DEST_LABELS = {code: f"{name.split(',')[-1].strip() if ',' in name else name.replace(' Airport', '')} ({code})"
+               for code, name in DESTINATION_AIRPORTS.items()}
+
+
 def main():
     """Main Streamlit application."""
 
@@ -93,70 +103,118 @@ def main():
         st.markdown("---")
         st.info("💡 This model was trained on historical Bangladesh flight data to predict total fare.")
 
-    # Main content - Input Form
+    # --- Input Form ---
     st.header("🎫 Enter Flight Details")
 
+    # Row 1: Route & Airline
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        airline = st.selectbox(
-            "Airline",
-            options=[
-                'Biman Bangladesh Airlines', 'US-Bangla Airlines', 'Novoair',
-                'Regent Airways', 'Air Astra'
-            ]
-        )
-
-        source = st.selectbox(
-            "Source City",
-            options=['Dhaka', 'Chittagong', 'Sylhet', 'Cox\'s Bazar', 'Jessore']
-        )
+        airline = st.selectbox("Airline", options=AIRLINES)
 
     with col2:
-        destination = st.selectbox(
-            "Destination City",
-            options=['Dhaka', 'Chittagong', 'Sylhet', 'Cox\'s Bazar', 'Jessore']
-        )
+        source_label = st.selectbox("Source Airport", options=list(SOURCE_LABELS.values()))
+        # Reverse-lookup code from label
+        source_code = [k for k, v in SOURCE_LABELS.items() if v == source_label][0]
 
+    with col3:
+        dest_label = st.selectbox("Destination Airport", options=list(DEST_LABELS.values()))
+        dest_code = [k for k, v in DEST_LABELS.items() if v == dest_label][0]
+
+    # Row 2: Date, Time, Duration
+    col4, col5, col6 = st.columns(3)
+
+    with col4:
         travel_date = st.date_input(
             "Departure Date",
             value=datetime.now(),
             min_value=datetime.now()
         )
 
-    with col3:
+    with col5:
         travel_time = st.time_input(
             "Departure Time",
             value=datetime.now().time()
         )
 
-        season = st.selectbox(
-            "Season",
-            options=['Spring', 'Summer', 'Autumn', 'Winter']
+    with col6:
+        duration = st.number_input(
+            "Duration (hrs)",
+            min_value=0.5,
+            max_value=24.0,
+            value=3.0,
+            step=0.5,
         )
 
-    # Validate input
-    if source == destination:
+    # Row 3: Booking details
+    col7, col8, col9 = st.columns(3)
+
+    with col7:
+        days_before = st.number_input(
+            "Days Before Departure",
+            min_value=1,
+            max_value=90,
+            value=30,
+            step=1,
+        )
+
+    with col8:
+        stopovers = st.selectbox("Stopovers", options=STOPOVERS)
+
+    with col9:
+        aircraft_type = st.selectbox("Aircraft Type", options=AIRCRAFT_TYPES)
+
+    # Row 4: Class, Booking Source, Seasonality
+    col10, col11, col12 = st.columns(3)
+
+    with col10:
+        ticket_class = st.selectbox("Class", options=CLASSES)
+
+    with col11:
+        booking_source = st.selectbox("Booking Source", options=BOOKING_SOURCES)
+
+    with col12:
+        seasonality = st.selectbox("Seasonality", options=SEASONALITIES)
+
+    # Validate source != destination
+    if source_code == dest_code:
         st.warning("⚠️ Source and Destination cannot be the same!")
         return
+
+    # Derive date features
+    month = travel_date.month
+    day = travel_date.day
+    weekday = travel_date.weekday()
+    hour = travel_time.hour
 
     # Prepare input data
     input_data = {
         'Airline': airline,
-        'Source': source,
-        'Destination': destination,
-        'Month': travel_date.month,
-        'Day': travel_date.day,
-        'Weekday': travel_date.weekday(),
-        'Hour': travel_time.hour,
-        'Season': season
+        'Source': source_code,
+        'Destination': dest_code,
+        'Month': month,
+        'Day': day,
+        'Weekday': weekday,
+        'Hour': hour,
+        'Duration (hrs)': duration,
+        'Days Before Departure': days_before,
+        'Stopovers': stopovers,
+        'Aircraft Type': aircraft_type,
+        'Class': ticket_class,
+        'Booking Source': booking_source,
+        'Seasonality': seasonality,
     }
+
+    # Show derived info
+    season = get_season(month)
+    route = f"{source_code} -> {dest_code}"
+    st.caption(f"Season: **{season}** | Route: **{route}**")
 
     # Prediction button
     if st.button("🔮 Predict Fare", use_container_width=True):
         try:
-            # Preprocess input
-            input_df = preprocess_input(input_data, feature_names)
+            # Preprocess input (includes scaling)
+            input_df = preprocess_input(input_data, feature_names, scaler)
 
             # Make prediction
             prediction = model.predict(input_df)[0]
@@ -164,26 +222,30 @@ def main():
             # Display prediction
             st.markdown('<div class="prediction-box">', unsafe_allow_html=True)
             st.markdown("### Predicted Fare")
-            st.markdown(f'<p class="prediction-value">{prediction:.2f} BDT</p>', unsafe_allow_html=True)
-            st.markdown(f"*Approximately ${prediction/110:.2f} USD*")
+            st.markdown(f'<p class="prediction-value">{prediction:,.2f} BDT</p>', unsafe_allow_html=True)
+            st.markdown(f"*Approximately ${prediction/110:,.2f} USD*")
             st.markdown('</div>', unsafe_allow_html=True)
 
             # Display input summary
             st.subheader("📋 Flight Summary")
-            col1, col2 = st.columns(2)
+            col_a, col_b = st.columns(2)
 
-            with col1:
-                st.write(f"**Route:** {source} → {destination}")
+            with col_a:
+                st.write(f"**Route:** {SOURCE_AIRPORTS[source_code].split(',')[0]} → {DESTINATION_AIRPORTS[dest_code].split(',')[0]}")
                 st.write(f"**Airline:** {airline}")
                 st.write(f"**Date:** {travel_date.strftime('%B %d, %Y')}")
-
-            with col2:
                 st.write(f"**Time:** {travel_time.strftime('%H:%M')}")
-                st.write(f"**Season:** {season}")
-                st.write(f"**Day of Week:** {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][travel_date.weekday()]}")
+                st.write(f"**Duration:** {duration} hrs")
+
+            with col_b:
+                st.write(f"**Class:** {ticket_class}")
+                st.write(f"**Stopovers:** {stopovers}")
+                st.write(f"**Aircraft:** {aircraft_type}")
+                st.write(f"**Booking Source:** {booking_source}")
+                st.write(f"**Booked:** {days_before} days before departure")
 
             # Confidence interval estimation (rough estimate)
-            st.info(f"💡 **Estimated Price Range:** {prediction * 0.9:.2f} - {prediction * 1.1:.2f} BDT")
+            st.info(f"💡 **Estimated Price Range:** {prediction * 0.9:,.2f} - {prediction * 1.1:,.2f} BDT")
 
         except Exception as e:
             st.error(f"❌ Error making prediction: {str(e)}")
