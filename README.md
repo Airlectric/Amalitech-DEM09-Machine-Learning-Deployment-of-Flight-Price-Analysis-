@@ -91,6 +91,32 @@ The app collects 12 user inputs and automatically derives the remaining features
 | 11 | Booking Source | Dropdown | Direct Booking, Online Website, Travel Agency |
 | 12 | Seasonality | Dropdown | Regular, Hajj, Eid, Winter Holidays |
 
+### From 17 Dataset Columns to 12 Frontend Fields
+
+The raw dataset has 17 columns, but not all are user inputs. The app reduces them to 12 fields:
+
+| Raw Dataset Column | Frontend | Reason |
+|---|---|---|
+| `Airline` | User selects | Direct input |
+| `Source` | User selects airport | Direct input |
+| `Source Name` | Auto-derived | Mapped from Source airport code |
+| `Destination` | User selects airport | Direct input |
+| `Destination Name` | Auto-derived | Mapped from Destination airport code |
+| `Departure Date & Time` | Date + Time pickers | Split into 2 fields |
+| `Arrival Date & Time` | Not needed | Duration replaces it |
+| `Duration (hrs)` | User enters | Direct input |
+| `Stopovers` | User selects | Direct input |
+| `Aircraft Type` | User selects | Direct input |
+| `Class` | User selects | Direct input |
+| `Booking Source` | User selects | Direct input |
+| `Base Fare (BDT)` | Excluded | Dropped during training (data leakage — sums to target) |
+| `Tax & Surcharge (BDT)` | Excluded | Dropped during training (data leakage — sums to target) |
+| `Total Fare (BDT)` | Excluded | This is the target variable we predict |
+| `Seasonality` | User selects | Direct input |
+| `Days Before Departure` | User enters | Direct input |
+
+The preprocessor then auto-generates additional derived features (`Route_Combined`, `Season`, `Month`, `Day`, `Weekday`, `Hour`) and one-hot encodes everything to produce all 248 model features.
+
 ### Model Info Sidebar
 If `best_model_metadata.pkl` is provided, the sidebar displays the model type and metrics (R2, RMSE, MAE, MAPE). Otherwise it gracefully shows a fallback message.
 
