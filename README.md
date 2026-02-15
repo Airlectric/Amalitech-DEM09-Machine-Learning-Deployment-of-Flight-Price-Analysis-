@@ -2,6 +2,8 @@
 
 A Streamlit web application for predicting Bangladesh flight fares using a trained ML model. The project is fully self-contained and ready for deployment.
 
+**Live App:** [flight-price-analysis-prediction-airlectric.streamlit.app](https://flight-price-analysis-prediction-airlectric.streamlit.app/)
+
 ## Project Structure
 
 ```
